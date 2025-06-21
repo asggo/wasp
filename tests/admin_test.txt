@@ -1,0 +1,75 @@
+#-----------------------------------------------------------------------------
+# When we hit the /account endpoint we should get a login page.
+#-----------------------------------------------------------------------------
+GET /account
+body contains Login to WASP
+
+#-----------------------------------------------------------------------------
+# Attempt to login to the application with bad credentials.
+#-----------------------------------------------------------------------------
+# Invalid username
+POST /account/login
+postquery
+    username=admi
+    password=adminpassword123
+body contains Invalid credentials.
+
+# Invalid password
+POST /account/login
+postquery
+    username=admin
+    password=adminpassword12
+body contains Invalid credentials.
+
+#-----------------------------------------------------------------------------
+# Login as the admin user. We should be redirected to the /site endpoint and
+# should have a session cookie.
+#-----------------------------------------------------------------------------
+POST /account/login
+postquery
+    username=admin
+    password=adminpassword123
+redirect == /site
+rawcookie sess contains Path=/
+rawcookie sess contains Secure
+rawcookie sess contains HttpOnly
+rawcookie sess contains SameSite=Strict
+
+#----------------------------------------------------------------------------
+# Verify we can access the /site endpoint as the admin user.
+#----------------------------------------------------------------------------
+GET /site
+body contains Authenticated to Site
+
+#----------------------------------------------------------------------------
+# Verify we can access the /site/admin endpoint as the admin user.
+#----------------------------------------------------------------------------
+GET /site/admin
+body contains Authenticated to Admin Site
+
+#-----------------------------------------------------------------------------
+# Access the /site/user endpoint to view our user.
+#-----------------------------------------------------------------------------
+GET /site/user
+body contains User admin
+body contains Admin: true
+
+#----------------------------------------------------------------------------
+# Log the admin user out and verify the session cookie is reset.
+#----------------------------------------------------------------------------
+GET /account/logout
+body contains You have successfully logged out
+rawcookie sess contains Path=/
+rawcookie sess contains Max-Age=0
+
+#----------------------------------------------------------------------------
+# Verify we can not access the /site endpoint after logout.
+#----------------------------------------------------------------------------
+GET /site
+code == 400
+
+#----------------------------------------------------------------------------
+# Verify we can not access the /site/admin endpoint after logout.
+#----------------------------------------------------------------------------
+GET /site/admin
+code == 400

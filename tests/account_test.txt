@@ -1,0 +1,92 @@
+#-----------------------------------------------------------------------------
+# Get the /account/register endpoint to create an account.
+#-----------------------------------------------------------------------------
+GET /account/register
+body contains Create Account
+
+#-----------------------------------------------------------------------------
+# Attempt to register a new account with invalid data.
+#-----------------------------------------------------------------------------
+# Username too short
+POST /account/register
+postquery
+    username=user123
+    password=userpassword1234
+    confirm=userpassword1234
+body ~ The username must be at least [0-9]+ characters.
+
+# Passphrase too short
+POST /account/register
+postquery
+    username=user1234
+    password=userpassword123
+    confirm=userpassword1234
+body ~ The password must be at least [0-9]+ characters.
+
+# Passphrases do not match
+POST /account/register
+postquery
+    username=user1234
+    password=userpassword1234
+    confirm=userpassword123
+body contains The passwords do not match.
+
+#-----------------------------------------------------------------------------
+# Register a new account with a valid data.
+#-----------------------------------------------------------------------------
+POST /account/register
+postquery
+    username=user1234
+    password=userpassword1234
+    confirm=userpassword1234
+redirect == /account
+
+#-----------------------------------------------------------------------------
+# Attempt to register a user that already exists. Should get a page error.
+#-----------------------------------------------------------------------------
+POST /account/register
+postquery
+    username=user1234
+    password=userpassword1234
+    confirm=userpassword1234
+body contains Username is already taken.
+
+#-----------------------------------------------------------------------------
+# Login as the new user. We should be redirected to the /site endpoint and
+# should have a session cookie.
+#-----------------------------------------------------------------------------
+POST /account/login
+postquery
+    username=user1234
+    password=userpassword1234
+redirect == /site
+rawcookie sess contains Path=/
+rawcookie sess contains Secure
+rawcookie sess contains HttpOnly
+rawcookie sess contains SameSite=Strict
+
+#----------------------------------------------------------------------------
+# Verify we can access the /site endpoint as the new user.
+#----------------------------------------------------------------------------
+GET /site
+body contains Authenticated to Site
+
+#----------------------------------------------------------------------------
+# Verify we can not access the /site/admin endpoint as the new user.
+#----------------------------------------------------------------------------
+GET /site/admin
+code == 403
+
+#----------------------------------------------------------------------------
+# Log the user out and verify the session cookie is reset.
+#----------------------------------------------------------------------------
+GET /account/logout
+body contains You have successfully logged out
+rawcookie sess contains Path=/
+rawcookie sess contains Max-Age=0
+
+#----------------------------------------------------------------------------
+# Verify we can not access the /site endpoint after logout.
+#----------------------------------------------------------------------------
+GET /site
+code == 400

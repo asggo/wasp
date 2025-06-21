@@ -1,0 +1,72 @@
+#-----------------------------------------------------------------------------
+# Login with a user account.
+#-----------------------------------------------------------------------------
+POST /account/login
+postquery
+    username=user1234
+    password=userpassword1234
+redirect == /site
+
+#-----------------------------------------------------------------------------
+# Access the /site/user endpoint to view our user.
+#-----------------------------------------------------------------------------
+GET /site/user
+body contains User user1234
+body contains Admin: false
+
+#-----------------------------------------------------------------------------
+# Access the /site/user/changepw endpoint to change the user password.
+#-----------------------------------------------------------------------------
+GET /site/user/changepw
+body contains Change Password
+
+#-----------------------------------------------------------------------------
+# Attempt to change the user's password with invalid data.
+#-----------------------------------------------------------------------------
+# Invalid old passphrase.
+POST /site/user/changepw
+postquery
+    old-password=userpassword123
+    new-password=userpassword1235
+    confirm=userpassword1235
+body contains Invalid credentials.
+
+# Passphrase too short
+POST /site/user/changepw
+postquery
+    old-password=userpassword1234
+    new-password=userpassword123
+    confirm=userpassword1235
+body ~ The password must be at least [0-9]+ characters.
+
+# Passphrases do not match
+POST /site/user/changepw
+postquery
+    old-password=userpassword1234
+    new-password=userpassword1235
+    confirm=userpassword1236
+body contains The passwords do not match.
+
+#-----------------------------------------------------------------------------
+# Attempt to change the user's password with valid data.
+#-----------------------------------------------------------------------------
+POST /site/user/changepw
+postquery
+    old-password=userpassword1234
+    new-password=userpassword1235
+    confirm=userpassword1235
+redirect == /account/logout
+
+#-----------------------------------------------------------------------------
+# Login with the new password. We should be redirected to the /site endpoint
+# and should have a session cookie.
+#-----------------------------------------------------------------------------
+POST /account/login
+postquery
+    username=user1234
+    password=userpassword1235
+redirect == /site
+rawcookie sess contains Path=/
+rawcookie sess contains Secure
+rawcookie sess contains HttpOnly
+rawcookie sess contains SameSite=Strict

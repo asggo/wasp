@@ -1,0 +1,12 @@
+{{ define "content" }}
+<h1>Create Admin Account</h1>
+
+<form method="post" action="/account/admin">
+    <input name="password" type="password" placeholder="Enter Password" />
+    <input name="confirm" type="password" placeholder="Confirm password" />
+    <input type="submit" value="Register Admin" />
+</form>
+
+<p class="error">{{ .Data }}</p>
+
+{{ end }}

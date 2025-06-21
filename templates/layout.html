@@ -1,0 +1,28 @@
+{{ define "layout" }}
+<!doctype html>
+<html>
+<head>
+    <title>WASP</title>
+    <link rel="stylesheet" href="/static/site.css" />
+    <script src="/static/site.js" defer></script>
+</head>
+<body>
+
+  <header>
+    {{ template "nav" . }}
+    <h1>WASP</h1>
+  </header>
+
+
+  <main class="content">
+    {{ template "content" . }}
+  </main>
+
+
+  <footer>
+    <p>&copy; 2025</p>
+  </footer>
+
+</body>
+</html>
+{{ end }}

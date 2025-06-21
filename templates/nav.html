@@ -1,0 +1,19 @@
+{{ define "nav" }}
+<nav>
+  <ul>
+    <li><a href="/">Home</a></li>
+
+    {{ if .Auth }}
+    <li><a href="/account/logout">Logout</a></li>
+    <li><a href="/site/user">Account</a></li>
+    {{ else }}
+    <li><a href="/account/">Login</a></li>
+    <li><a href="/account/register">Register</a></li>
+    {{ end }}
+    {{ if .Admin }}
+    <li><a href="/site/admin">Admin</a></li>
+    {{ end }}
+  </ul>
+</nav>
+
+{{ end }}

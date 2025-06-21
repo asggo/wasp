@@ -1,0 +1,167 @@
+:root {
+  --black: #08090aff;
+  --white: #f4f7f5ff;
+  --grey: #575a5eff;
+  --blue: #33a1fdff;
+  --orange: #f79824ff;
+  --logo-color: var(--grey);
+  --header-color: var(--white);
+  --header-bg-color: var(--orange);
+  --main-color: var(--black);
+  --main-bg-color: var(--white);
+  --serif: Neuton, serif;
+  --header-sans: Poppins, sans-serif;
+  --sans-serif: Nunito, sans-serif;
+}
+
+html {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  color: var(--main-color);
+  background-color: var(--main-bg-color);
+  font-family: var(--sans-serif);
+  font-size: 18px;
+}
+
+header {
+  margin: 0;
+  padding: 0.5em 12em;
+  color: var(--header-color);
+  background-color: var(--header-bg-color);
+  min-width: 800px;
+}
+
+header h1, header h2 {
+  margin: 0;
+  padding: 0;
+}
+
+header h1 {
+  color: var(--logo-color);
+  font-family: var(--serif);
+  font-size: 3em;
+  font-weight: bold;
+  line-height: 175%;
+  clear: both;
+}
+
+header h2 {
+  font-size: 2.1em;
+  font-style: italic;
+  font-weight: normal;
+  clear: both;
+}
+
+header nav {
+  float: right;
+  margin: 0;
+  padding: 0;
+}
+
+header nav ul {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+}
+
+header nav li {
+  display: inline;
+  font-size: 1.1em;
+  font-weight: bold;
+  font-family: var(--header-sans);
+  padding: 0 .5em;
+}
+
+header nav a {
+  color: var(--header-color);
+  text-decoration: none;
+}
+
+header nav .hide {
+  display: none;
+}
+
+header nav .show {
+  display: inline;
+}
+
+main {
+  margin: 0;
+  padding: 2em 12em;
+  max-width: 800px;
+  min-height: 600px;
+}
+
+main p {
+  margin: 0;
+  padding: 0 0 1em 0;
+  line-height: 1.5em;
+}
+
+main a {
+  color: var(--blue);
+  font-weight: bold;
+  text-decoration: none;
+}
+
+main h1, main h2, main h3, main h4 {
+  font-family: var(--header-sans);
+  font-weight: bold;
+  margin: 0;
+  padding: 1em 0 0 0;
+}
+
+main time {
+  display: block;
+  font-style: italic;
+  color: var(--grey);
+  font-size: .9em;
+  margin: 0;
+  padding: 0 0 2em 0;
+}
+
+main .error {
+  font-style: bold;
+  color: var(--orange);
+  font-size: .9em;
+}
+
+ul#posts time {
+  display: inline;
+  font-style: italic;
+  color: var(--grey);
+  font-size: .9em;
+  padding: 0;
+}
+
+ul#posts {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+}
+
+ul#posts li {
+/*  display: inline;*/
+  font-size: 1.1em;
+  font-weight: bold;
+  padding: 0 .5em;
+}
+
+ul#posts a {
+  color: var(--main-color);
+  text-decoration: none;
+}
+
+footer {
+  margin: 0;
+  padding: 0.5em 12em;
+}
+
+footer p {
+  font-size: .8em;
+}

@@ -1,0 +1,11 @@
+{{ define "content" }}
+<h1>Login to WASP</h2>
+
+<form method="post" action="/account/login">
+    <input name="username" type="text" placeholder="Enter Username" />
+    <input name="password" type="password" placeholder="Enter Password" />
+    <input type="submit" value="Login" />
+</form>
+
+<p class="error">{{ .Data }}</p>
+{{ end }}

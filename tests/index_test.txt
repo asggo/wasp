@@ -1,0 +1,52 @@
+#-----------------------------------------------------------------------------
+# When the database is new, it does not have an admin account yet, so the
+# index route returns a page that prompts to create an admin account.
+#-----------------------------------------------------------------------------
+GET /
+body contains Create Admin Account
+
+#-----------------------------------------------------------------------------
+# Attempt to create the admin account with invalid data.
+#-----------------------------------------------------------------------------
+# Passphrase too short
+POST /account/admin
+postquery
+    password=adminpassword12
+    confirm=adminpassword123
+body ~ The password must be at least [0-9]+ characters.
+
+#Passphrases do not match
+POST /account/admin
+postquery
+    password=adminpassword123
+    confirm=adminpassword12
+body contains The passwords do not match.
+
+#-----------------------------------------------------------------------------
+# Create the admin account with a valid password.
+#-----------------------------------------------------------------------------
+POST /account/admin
+postquery
+    password=adminpassword123
+    confirm=adminpassword123
+redirect == /
+
+#-----------------------------------------------------------------------------
+# Attempt to create the admin account again. We expect a BadRequest (404)
+# error message.
+#-----------------------------------------------------------------------------
+POST /account/admin
+postquery
+    password=adminpassword123
+    confirm=adminpassword123
+code == 400
+
+#-----------------------------------------------------------------------------
+# Now that we have an admin account fetching / should give us the welcom page.
+#-----------------------------------------------------------------------------
+GET /
+body contains Welcome
+header strict-transport-security == max-age=63072000; includeSubDomains; preload
+header content-security-policy == default-src 'self'
+header x-content-type-options == nosniff
+header cache-control == no-store

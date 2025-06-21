@@ -1,0 +1,13 @@
+{{ define "content" }}
+<h1>Create Account</h1>
+
+<form method="post" action="/account/register">
+    <input name="username" type="text" placeholder="Enter Username" />
+    <input name="password" type="password" placeholder="Enter Password" />
+    <input name="confirm" type="password" placeholder="Confirm password" />
+    <input type="submit" value="Register" />
+</form>
+
+<p class="error">{{ .Data }}</p>
+
+{{ end }}

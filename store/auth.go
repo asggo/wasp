@@ -8,21 +8,21 @@ const (
 	maxFailCount = 10
 )
 
-var (
-	failedKey = "%s:failed"
-	hashKey   = "%s:hash"
-)
-
 // ----------------------------------------------------------------------------
 // Authentication Storage Methods
 // ----------------------------------------------------------------------------
 // Authenticate takes a passphrase and verifies it matches the user's original
 // passphrase.
-func (s *Store) AuthenticateUser(ut UserToken, passphrase string) bool {
-	key := fmt.Sprintf(hashKey, ut.String())
-	hash := s.read(userBucket, key)
+func (s *Store) AuthenticateUser(ut UserToken, passphrase, totp string) bool {
+	if !s.verifyHash(ut, string(hash), passphrase) {
+		return false
+	}
 
-	return VerifyHash(string(hash), passphrase)
+	if !s.verifyTotp(ut, totp) {
+		return false
+	}
+
+	return true
 }
 
 func (s *Store) ChangeUserPassword(ut UserToken, passphrase string) error {

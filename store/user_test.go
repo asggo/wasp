@@ -11,85 +11,115 @@ var (
 	testUserDbPath     = "user_test.db"
 )
 
-func testUserEqual(t *testing.T, u1, u2 User) {
-	if (u1.UserId != u2.UserId) || (u1.Alias != u2.Alias) || (u1.Admin != u2.Admin) {
-		t.Fatal("Expected", u1, ", received", u2)
+func testStoreUserKeysExist(s *Store, t *testing.T) {
+	key := fmt.Sprintf(userFailedKey, string(ut))
+	data := s.Read(userBucket, key)
+	if data == nil {
+		t.Fatal("Expected failed count, received nil")
+	}
+
+	key = fmt.Sprintf(userHashKey, string(ut))
+	data = s.Read(userBucket, key)
+	if data == nil {
+		t.Fatal("Expected password hash, received nil")
+	}
+
+	key = fmt.Sprintf(userTotpKey, string(ut))
+	data = s.Read(userBucket, key)
+	if data == nil {
+		t.Fatal("Expected TotpKey, received nil")
+	}
+
+	key = fmt.Sprintf(userAdminKey, string(ut))
+	data = s.Read(userBucket, key)
+	if data == nil {
+		t.Fatal("Expected Admin flag, received nil")
 	}
 }
 
-func TestUser(t *testing.T) {
-	fmt.Println(t.Name())
-
-	u1 := NewUser(testUserAlias)
-	if u1.Admin {
-		t.Fatal("Expected", false, ", received", u1.Admin)
+func testStoreUserKeysNotExist(s *Store, t *testing.T) {
+	key := fmt.Sprintf(userFailedKey, string(ut))
+	data := s.Read(userBucket, key)
+	if data != nil {
+		t.Fatal("Expected nil, received", data)
 	}
 
-	bytes, err := u1.bytes()
-	if err != nil {
-		t.Fatal("Expected", nil, ", received", err)
+	key = fmt.Sprintf(userHashKey, string(ut))
+	data = s.Read(userBucket, key)
+	if data != nil {
+		t.Fatal("Expected nil, received", data)
 	}
 
-	u2, err := NewUserFromBytes(bytes)
-	if err != nil {
-		t.Fatal("Expected", nil, ", received", err)
+	key = fmt.Sprintf(userTotpKey, string(ut))
+	data = s.Read(userBucket, key)
+	if data != nil {
+		t.Fatal("Expected nil, received", data)
 	}
 
-	testUserEqual(t, u1, u2)
+	key = fmt.Sprintf(userAdminKey, string(ut))
+	data = s.Read(userBucket, key)
+	if data != nil {
+		t.Fatal("Expected nil, received", data)
+	}
 }
 
-func testStoreUser(t *testing.T) {
+func testStoreUserExists(s *Store, t *testing.T) {
+	if !s.UserExists(testUserAlias) {
+		t.Fatal("Expected user to exist, but it does not")
+	}
+
+	ut, err = GetUserToken(testUserAlias)
+	if err != nil {
+		t.Fatal("Expected no error, received", err)
+	}
+
+}
+
+func testStoreUserNotExists(s *Store, t *testing.T) {
 	fmt.Println(t.Name())
 
-	u1 := NewUser(testUserAlias)
+	if s.UserExists(testUserAlias) {
+		t.Fatal("Expected user to not exist, but it does")
+	}
+
+	ut, err := GetUserToken(testUserAlias)
+	if err == nil {
+		t.Fatal("Expected an error, received nil")
+	}
+}
+
+func TestStoreUser(t *testing.T) {
+	fmt.Println(t.Name())
+
 	s := newTestStore(t, testUserDbPath)
 	defer deleteTestStore(t, testUserDbPath)
 
-	// Create User
-	err := s.CreateUser(u1, testUserPassphrase)
+	testStoreUserNotExists(s, t)
+	testStoreUserKeysNotExist(s, t)
+
+	// Create the user
+	err := s.CreateUser(testUserAlias, testUserPassphrase, false)
 	if err != nil {
 		t.Fatal("Expected", nil, ", received", err)
 	}
 
-	err = s.CreateUser(u1, testUserPassphrase)
+	// The user is created so CreateUser should return an error.
+	err = s.CreateUser(testUserAlias, testUserPassphrase, false)
 	if err == nil {
 		t.Fatal("Expected error, received nil")
 	}
 
-	// User Exists
-	if s.UserExists("nope") {
-		t.Fatal("Expected user to not exist, but it does")
-	}
-
-	if !s.UserExists(testUserAlias) {
-		t.Fatal("Expected user to exist, but it does not.")
-	}
-
-	// Get User
-	u2, err := s.GetUser(u1.UserId)
-	if err != nil {
-		t.Fatal("Expected", nil, ", received", err)
-	}
-
-	testUserEqual(t, u1, u2)
-
-	// Get User by Alias
-	u3, err := s.GetUserByAlias(testUserAlias)
-	if err != nil {
-		t.Fatal("Expected", nil, ", received", err)
-	}
-
-	testUserEqual(t, u1, u3)
+	testStoreUserExists(s, t)
+	testStoreUserKeysExist(s, t)
 
 	// Delete User
-	err = s.DeleteUser(u1)
+	err = s.DeleteUser(testUserAlias)
 	if err != nil {
 		t.Fatal("Expected", nil, ", received", err)
 	}
 
-	if s.UserExists(testUserAlias) {
-		t.Fatal("Expected user to not exist, but it does.")
-	}
+	testStoreUserNotExists(s, t)
+	testStoreUserKeysNotExist(s, t)
 
 	s.Close()
 }

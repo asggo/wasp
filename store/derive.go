@@ -16,7 +16,33 @@ const (
 	keySize  = 32
 )
 
-// argonDerive derives an Argon2id hash based on the stored parameters.
+//----------------------------------------------------------------------------
+// Derive Storage Methods
+//----------------------------------------------------------------------------
+
+// VerifyHash verifies a given passphrase generates the given hash.
+func (s *Store) verifyHash(ut UserToken, hash, passphrase string) bool {
+	key := fmt.Sprintf(userHashKey, ut.String())
+	data := s.read(userBucket, key)
+	if data == nil {
+		return false
+	}
+
+	ah, err := newArgonHashFromString(string(data))
+	if err != nil {
+		return false
+	}
+
+	derived := ah.derive(passphrase)
+	cmp := subtle.ConstantTimeCompare([]byte(hash), []byte(derived))
+
+	return cmp == 1
+}
+
+//----------------------------------------------------------------------------
+// argonHash Struct
+//----------------------------------------------------------------------------
+
 type argonHash struct {
 	memory  uint32
 	time    uint32
@@ -25,7 +51,7 @@ type argonHash struct {
 }
 
 // derive takes a passphrase and returns a salt and derived key.
-func (a argonHash) derive(passphrase string) string {
+func (a *argonHash) derive(pwd string) string {
 	// Normalize our passphrase
 	passphrase = norm.NFKD.String(passphrase)
 
@@ -43,8 +69,18 @@ func (a argonHash) derive(passphrase string) string {
 	)
 }
 
-// newArgonHash creates a new argonHash with the given parameters and salt.
-func newArgonHash(m, t uint32, p uint8, salt [saltSize]byte) argonHash {
+// newArgonHash creates a new argonHash with the given parameters and a
+// random salt.
+func newArgonHash(m, t uint32, p uint8) (argonHash, error) {
+	var salt [saltSize]byte
+	var hash string
+
+	// Get a random salt value.
+	_, err := rand.Read(salt[:])
+	if err != nil {
+		return hash, fmt.Errorf("could not newArgonHash: %v", err)
+	}
+
 	return argonHash{
 		time:    t,
 		memory:  m,
@@ -84,36 +120,4 @@ func newArgonHashFromString(hash string) (argonHash, error) {
 	copy(ah.salt[:], saltBytes[:saltSize])
 
 	return ah, nil
-}
-
-// GenerateHash creates a new Argon2id hash with the given passphrase.
-func GenerateHash(passphrase string) (string, error) {
-	var saltBytes [saltSize]byte
-	var hash string
-
-	// Get a random salt value.
-	_, err := rand.Read(saltBytes[:])
-	if err != nil {
-		return hash, fmt.Errorf("could not argonHash.derive: %v", err)
-	}
-
-	// Create an argonHash with the SECOND RECOMMENDED option from RFC9106 and
-	// derive our hash.
-	argon := newArgonHash(64*1024, 4, 3, saltBytes)
-	hash = argon.derive(passphrase)
-
-	return hash, nil
-}
-
-// VerifyHash verifies a given passphrase generates the given hash.
-func VerifyHash(hash, passphrase string) bool {
-	argon, err := newArgonHashFromString(hash)
-	if err != nil {
-		return false
-	}
-
-	derived := argon.derive(passphrase)
-	cmp := subtle.ConstantTimeCompare([]byte(hash), []byte(derived))
-
-	return cmp == 1
 }

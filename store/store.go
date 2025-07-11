@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/asggo/wasp/config"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -24,7 +25,8 @@ var (
 
 // Store holds the bolt database
 type Store struct {
-	db *bolt.DB
+	db  *bolt.DB
+	cfg *config.Config
 }
 
 // ----------------------------------------------------------------------------
@@ -166,7 +168,7 @@ func (s *Store) Close() error {
 
 // NewStore creates a new Store object using a bbolt database located at the
 // given filePath.
-func NewStore(filePath string) (Store, error) {
+func NewStore(filePath string, cfg *config.Config) (Store, error) {
 	var s Store
 
 	db, err := bolt.Open(filePath, 0640, &bolt.Options{Timeout: 1 * time.Second})
@@ -179,6 +181,8 @@ func NewStore(filePath string) (Store, error) {
 	if err != nil {
 		return s, fmt.Errorf("could not NewStore: %v", err)
 	}
+
+	s.cfg = cfg
 
 	return s, nil
 }

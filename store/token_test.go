@@ -13,6 +13,7 @@ const (
 func TestTokens(t *testing.T) {
 	t.Run("Test UserToken", testUserToken)
 	t.Run("Test SessionToken", testSessionToken)
+	t.Run("Test TotpToken", testTotpToken)
 }
 
 func testTokenBytes(t *testing.T, s string) {
@@ -71,6 +72,32 @@ func testSessionToken(t *testing.T) {
 	}
 
 	token = strings.TrimPrefix(token, sessionTokenPrefix)
+	if len(token) != tokenBase32Size {
+		t.Fatal("Expected", tokenBase32Size, "base32 characters, received", len(token))
+	}
+
+	testTokenBytes(t, token)
+}
+
+func testTotpToken(t *testing.T) {
+	fmt.Println(t.Name())
+
+	token := NewTotpToken().String()
+
+	if !strings.HasPrefix(token, totpTokenPrefix) {
+		t.Fatal("TotpToken has incorrect prefix.")
+	}
+
+	parsed, err := parseTotpToken(token)
+	if err != nil {
+		t.Fatal("Expected no error, recieved", err)
+	}
+
+	if parsed.String() != token {
+		t.Fatal("Expected", token, ", received", parsed.String())
+	}
+
+	token = strings.TrimPrefix(token, totpTokenPrefix)
 	if len(token) != tokenBase32Size {
 		t.Fatal("Expected", tokenBase32Size, "base32 characters, received", len(token))
 	}

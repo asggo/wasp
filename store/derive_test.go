@@ -34,7 +34,7 @@ func testNewArgonHash(t *testing.T) {
 	bytes, _ := base64.RawStdEncoding.DecodeString(goodSalt)
 	copy(saltBytes[:], bytes)
 
-	argon := newArgonHash(64*1024, 4, 3, saltBytes)
+	argon, err := newArgonHash(64*1024, 4, 3)
 	hash := argon.derive(goodPassword)
 
 	if hash != goodHash {

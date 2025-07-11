@@ -13,6 +13,7 @@ const (
 	tokenSize          = 32
 	userTokenPrefix    = "user_"
 	sessionTokenPrefix = "sess_"
+	totpTokenPrefix    = "totp_"
 )
 
 // tokenEncoder is used to encoded and decode our tokens using a standard
@@ -115,6 +116,55 @@ func parseSessionToken(s string) (SessionToken, error) {
 	copy(st[:], data)
 
 	return st, nil
+}
+
+//----------------------------------------------------------------------------
+// TotpToken
+//----------------------------------------------------------------------------
+
+// TotpToken represents a TOTP token.
+type TotpToken [tokenSize]byte
+
+// String converts a TotpToken object to a string.
+func (t TotpToken) String() string {
+	token := tokenEncoder.EncodeToString(s[:])
+
+	return fmt.Sprintf("%s%s", totpTokenPrefix, token)
+}
+
+// NewTotpToken generates a random TotpToken.
+func NewTotpToken() TotpToken {
+	var tt TotpToken
+
+	bytes := newTokenBytes()
+	copy(tt[:], bytes[:])
+
+	return tt
+}
+
+// parseTotpToken takes a string in the form of totp_base32 and parses it
+// into an TotpToken
+func parseTotpToken(s string) (TotpToken, error) {
+	var tt TotpToken
+
+	if !strings.HasPrefix(s, totpTokenPrefix) {
+		return tt, fmt.Errorf("could not parseTotpToken: invalid prefix")
+	}
+
+	s = strings.TrimPrefix(s, totpTokenPrefix)
+
+	data, err := tokenEncoder.DecodeString(s)
+	if err != nil {
+		return tt, fmt.Errorf("could not parseTotpToken: %v", err)
+	}
+
+	if len(data) != tokenSize {
+		return tt, fmt.Errorf("could not parseTotpToken: invalid length")
+	}
+
+	copy(tt[:], data)
+
+	return tt, nil
 }
 
 //----------------------------------------------------------------------------

@@ -35,7 +35,7 @@ func TestGenerateSha256Totp(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		have := GenerateSha256Totp(testTotpSha256Seed, test.time, 8)
+		have := generateSha256Totp(testTotpSha256Seed, test.time, 8)
 		if have != test.totp {
 			t.Fatal("Expected", test.totp, ", received", have)
 		}

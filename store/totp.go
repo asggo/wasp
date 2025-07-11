@@ -16,24 +16,49 @@ import (
 
 // GetTotpUrl returns the URL for the given user's Totp secret in Google Auth
 // format.
-func (s *Store) GetTotpUrl(ut UserToken) (string, error) {
-	key := fmt.Sprintf(userTotpKey, ut.String())
-
-	data := s.read(userBucket, key)
-	if data == nil {
+func (s *Store) GetUserTotpUrl(ut UserToken) (string, error) {
+	tt, err := s.GetTotpToken(ut)
+	if err != nil {
 		return "", fmt.Errorf("could not Store.GetTotpUrl: %v", err)
 	}
 
-	secret := strings.TrimPrefix(totpTokenPrefix, string(data))
+	secret := strings.TrimPrefix(totpTokenPrefix, tt.String())
 	otpStr := "otpauth://totp/%s?secret=%s&issuer=%s"
 	url := fmt.Sprintf(otpStr, s.cfg.TotpName, secret, s.cfg.TotpIssuer)
 
 	return url, nil
 }
 
-// VerifyTotp returns true if the given totp value matches the value generated
-// for the given user.
-func (s *Store) verifyTotp(ut UserToken, expected string) bool {
+// GetUserTotpToken returns the TotpToken associated with the given UserToken.
+func (s *Store) GetUserTotpToken(ut UserToken) (TotpToken, error) {
+	var tt TotpToken
+
+	key := fmt.Sprintf(userTotpKey, ut.String())
+
+	data := s.read(userBucket, key)
+	if data == nil {
+		return tt, fmt.Errorf("could not Store.GetTotpToken: %v", err)
+	}
+
+	tt, err := parseTotpToken(string(data))
+	if err != nil {
+		return tt, fmt.Errorf("could not Store.GetTotpToken: %v", err)
+	}
+
+	return tt, nil
+}
+
+// DeleteUserTotpToken deletes the TotpToken associated with the given
+// UserToken.
+func (s *Store) DeleteUserTotpToken(ut UserToken) error {
+	key := fmt.Sprintf(userTotpKey, ut.String())
+
+	return s.Delete(userBucket, key)
+}
+
+// VerifyTotp returns true if the expected totp value matches the value
+// generated for the given user.
+func (s *Store) VerifyTotp(ut UserToken, expected string) bool {
 	key := fmt.Sprintf(userTotpKey, ut.String())
 
 	data := s.read(userBucket, key)
@@ -46,13 +71,12 @@ func (s *Store) verifyTotp(ut UserToken, expected string) bool {
 		return false
 	}
 
-	ts := time.Now().Unix()
 	derived := generateSha256Totp(
 		tt[:],
-		ts,
+		time.Now().Unix(),
 		s.cfg.TotpLength,
 		s.cfg.TotpStart,
-		s.cfgTotpStep,
+		s.cfg.TotpStep,
 	)
 
 	cmp := subtle.ConstantTimeCompare([]byte(derived), []byte(expected))

@@ -98,13 +98,13 @@ func TestStoreUser(t *testing.T) {
 	testStoreUserKeysNotExist(s, t)
 
 	// Create the user
-	err := s.CreateUser(testUserAlias, testUserPassphrase, false)
+	_, err := s.CreateUser(testUserAlias, testUserPassphrase, false)
 	if err != nil {
 		t.Fatal("Expected", nil, ", received", err)
 	}
 
 	// The user is created so CreateUser should return an error.
-	err = s.CreateUser(testUserAlias, testUserPassphrase, false)
+	_, err = s.CreateUser(testUserAlias, testUserPassphrase, false)
 	if err == nil {
 		t.Fatal("Expected error, received nil")
 	}

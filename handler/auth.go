@@ -91,14 +91,19 @@ func (ah *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	ah.db.ResetFailedAuthCount(user.UserId)
 
-	sess, err := store.NewSession(user.UserId, ah.cfg.SessionLength)
+	// sess, err := store.NewSession(user.UserId, ah.cfg.SessionLength)
+	// if err != nil {
+	// 	e := fmt.Errorf("could not AuthHandler.Login: %v", err)
+	// 	NewServerError(e).Handle(w, r)
+	// 	return
+	// }
+
+	st, err := ah.db.CreateSession(user.UserId)
 	if err != nil {
 		e := fmt.Errorf("could not AuthHandler.Login: %v", err)
 		NewServerError(e).Handle(w, r)
 		return
 	}
-
-	ah.db.CreateSession(sess)
 
 	cookie := http.Cookie{
 		Name:     "sess",

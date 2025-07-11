@@ -22,11 +22,13 @@ var (
 
 // CreateUser takes a UserToken, alias, password, and an admin flag and
 // creates a user in the Store.
-func (s *Store) CreateUser(alias, pwd string, adm bool) error {
+func (s *Store) CreateUser(alias, pwd string, adm bool) (UserToken, error) {
+	var ut UserToken
+
 	// Verify the alias does not already exist
 	data := s.read(userBucket, alias)
 	if data != nil {
-		return fmt.Errorf("could not Store.CreateUser: alias %s exists", alias)
+		return ut, fmt.Errorf("could not Store.CreateUser: alias %s exists", alias)
 	}
 
 	// Create a UserToken for the user.
@@ -38,7 +40,7 @@ func (s *Store) CreateUser(alias, pwd string, adm bool) error {
 	// Generate the user's password hash.
 	ah, err := newArgonHash(s.cfg.ArgonTime, s.cfg.ArgonMemory, s.cfg.ArgonThreads)
 	if err != nil {
-		return fmt.Errorf("could not Store.CreateUser: %v", err)
+		return ut, fmt.Errorf("could not Store.CreateUser: %v", err)
 	}
 
 	hash := ah.derive(pwd)
@@ -85,10 +87,10 @@ func (s *Store) CreateUser(alias, pwd string, adm bool) error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("could not Store.CreateUser: %v", err)
+		return ut, fmt.Errorf("could not Store.CreateUser: %v", err)
 	}
 
-	return nil
+	return ut, nil
 }
 
 // DeleteUser takes an alias and removes all the keys associated with the

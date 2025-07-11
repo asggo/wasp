@@ -9,6 +9,29 @@ import (
 	"github.com/asggo/wasp/store"
 )
 
+// NewSessionFromRequest loads a Session from the Store based on the session
+// cookie in the given HTTP request.
+func (s *Store) NewSessionFromRequest(r *http.Request, s *Store) (Session, error) {
+	var sess Session
+
+	sessCookie, err := r.Cookie("sess")
+	if err != nil {
+		return sess, fmt.Errorf("could not NewSessionFromRequest: %v", err)
+	}
+
+	sessId, err := parseSessionToken(sessCookie.Value)
+	if err != nil {
+		return sess, fmt.Errorf("could not NewSessionFromRequest: %v", err)
+	}
+
+	sess, err = s.GetSession(sessId)
+	if err != nil {
+		return sess, fmt.Errorf("could not NewSessionFromRequest: %v", err)
+	}
+
+	return sess, nil
+}
+
 // Authorizer determines if the request has proper session cookie. If so, it
 // loads the user tied to the session cookie in the request. Otherwise it
 // returns an invalid session error.

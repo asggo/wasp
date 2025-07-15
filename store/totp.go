@@ -138,6 +138,21 @@ func (s *Store) getUserTotp(ut userToken) (totp, error) {
 	return t, nil
 }
 
+// getRecentTotpCode retrieves the last successfully used totp code from the
+// store.
+func (s *Store) getRecentTotpCode(ut userToken) string {
+	key := fmt.Sprintf(authRecentCodeKey, ut.String())
+
+	return string(s.read(authBucket, key))
+}
+
+// saveRecentTotpCode saves the most recent successfully used totp code to the
+// store.
+func (s *Store) saveRecentTotpCode(ut userToken, code string) {
+	key := fmt.Sprintf(authUsedCodeKey, ut.String())
+	s.write(authBucket, key, []byte(code))
+}
+
 // deleteUserTotpToken deletes the TotpToken associated with the given
 // UserToken.
 func (s *Store) deleteUserTotp(ut userToken) error {
@@ -157,10 +172,10 @@ func (s *Store) verifyTotp(ut userToken, expected string) bool {
 	// Get the current code and compare it to the expected code.
 	now := time.Now().Unix()
 	curr := totp.getCode(now)
-	cmp := subtle.ConstantTimeCompare([]byte(curr), []byte(expected))
 
-	// If the comparison fails, calculate the previous code and test it.
+	cmp := subtle.ConstantTimeCompare([]byte(curr), []byte(expected))
 	if cmp == 0 {
+		// If the comparison fails, calculate the previous code and test it.
 		prev := totp.getCode(now - s.cfg.Step)
 
 		return subtle.ConstantTimeCompare([]byte(prev), []byte(expected)) == 1

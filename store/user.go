@@ -57,7 +57,6 @@ func newUserFromBytes(data []byte) (user, error) {
 	return u, nil
 }
 
-
 //----------------------------------------------------------------------------
 // User Storage Methods
 //----------------------------------------------------------------------------
@@ -65,6 +64,8 @@ func newUserFromBytes(data []byte) (user, error) {
 // CreateUser takes a UserToken, alias, password, and an admin flag and
 // creates a user in the Store.
 func (s *Store) CreateUser(alias, pwd string, admin bool) (userToken, error) {
+	var ut userToken
+
 	// Verify the alias does not already exist
 	data := s.read(userBucket, alias)
 	if data != nil {
@@ -73,52 +74,67 @@ func (s *Store) CreateUser(alias, pwd string, admin bool) (userToken, error) {
 
 	// Create a user.
 	user := newUser(alias, admin)
+	ut = user.UserId
 
 	// Create a TotpToken for the user.
-	secret := NewTotpToken()
+	totp := newTotp()
 
-	// Generate the user's password hash.
-	ah, err := newArgonHash(s.cfg.ArgonTime, s.cfg.ArgonMemory, s.cfg.ArgonThreads)
+	// Create the user's passwordHash
+	ph, err := newPasswordHash(s.cfg.ArgonTime, s.cfg.ArgonMemory, s.cfg.ArgonThreads, pwd)
 	if err != nil {
 		return ut, fmt.Errorf("could not Store.CreateUser: %v", err)
 	}
 
-	hash := ah.derive(pwd)
-
 	// Use a transaction to create the user account in the database
 	err = s.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(userBucket))
+		ub := tx.Bucket([]byte(userBucket))
+		ab := tx.Bucket([]byte(authBucket))
+		uid := user.UserId.String()
 
-		// Associate alias and user id
-		err = b.Put([]byte(alias), []byte(ut.String()))
+		// Associate alias and user id in the userBucket
+		err = ub.Put([]byte(alias), []byte(uid))
 		if err != nil {
 			return err
 		}
 
-		// Store the user's password hash
-		key := fmt.Sprintf(userHashKey, ut.String())
-		err = b.Put([]byte(key), []byte(hash))
+		// Get the user object bytes and store them in the userBucket
+		data, err := user.bytes()
 		if err != nil {
 			return err
 		}
 
-		// Store the user's failed authentication count
-		key = fmt.Sprintf(userFailedKey, ut.String())
-		err = b.Put([]byte(key), uint64ToBytes(0))
+		err = ub.Put([]byte(uid), data)
 		if err != nil {
 			return err
 		}
 
-		// Store the user's totp secret
-		key = fmt.Sprintf(userTotpKey, ut.String())
-		err = b.Put([]byte(key), []byte(secret.String()))
+		// Get the passwordHash bytes and store them in the authBucket
+		data, err = ph.bytes()
 		if err != nil {
 			return err
 		}
 
-		// Set the user admin flag
-		key = fmt.Sprintf(userAdminKey, ut.String())
-		err = b.Put([]byte(key), []byte(fmt.Sprintf("%t", adm)))
+		key := fmt.Sprintf(authHashKey, uid)
+		err = ab.Put([]byte(key), data)
+		if err != nil {
+			return err
+		}
+
+		// Get the totp object bytes and store them in the authBucket
+		data, err = totp.bytes()
+		if err != nil {
+			return err
+		}
+
+		key = fmt.Sprintf(authTotpKey, uid)
+		err = ab.Put([]byte(key), data)
+		if err != nil {
+			return err
+		}
+
+		// Store the user's failed authentication count in the authBucket
+		key = fmt.Sprintf(authFailedKey, uid)
+		err = ab.Put([]byte(key), uint64ToBytes(0))
 		if err != nil {
 			return err
 		}
@@ -133,46 +149,46 @@ func (s *Store) CreateUser(alias, pwd string, admin bool) (userToken, error) {
 	return ut, nil
 }
 
-// DeleteUser takes an alias and removes all the keys associated with the
-// user from the Store.
+// DeleteUser takes an alias and removes all the keys associated with the user
+// from the Store.
 func (s *Store) DeleteUser(alias string) error {
 	ut := s.read(userBucket, alias)
-	if data == nil {
+	if ut == nil {
 		return fmt.Errorf("could not Store.DeleteUser: alias %s does not exist", alias)
 	}
 
 	err := s.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(userBucket))
+		ub := tx.Bucket([]byte(userBucket))
+		ab := tx.Bucket([]byte(authBucket))
 
-		// Remove the admin flag
-		key := fmt.Sprintf(userAdminKey, string(ut))
-		err := b.Delete([]byte(key))
+		// Remove the failed auth count from the authBucket
+		key = fmt.Sprintf(authFailedKey, string(ut))
+		err = ab.Delete([]byte(key))
 		if err != nil {
 			return err
 		}
 
-		// Remove the Totp secret
-		key = fmt.Sprintf(userTotpKey, string(ut))
+		// Remove the totp object from the authBucket
+		key = fmt.Sprintf(authTotpKey, string(ut))
+		err = ab.Delete([]byte(key))
+		if err != nil {
+			return err
+		}
+
+		// Remove the passwordHash object from the authBucket
+		key = fmt.Sprintf(authHashKey, string(ut))
 		err = b.Delete([]byte(key))
 		if err != nil {
 			return err
 		}
 
-		// Remove the password hash
-		key = fmt.Sprintf(userHashKey, string(ut))
-		err = b.Delete([]byte(key))
+		// Remove the user object from the userBucket
+		err := b.Delete(ut)
 		if err != nil {
 			return err
 		}
 
-		// Remove the failed authentication count
-		key = fmt.Sprintf(userFailedKey, string(ut))
-		err = b.Delete([]byte(key))
-		if err != nil {
-			return err
-		}
-
-		// Remove the alias
+		// Remove the alias association from the userBucket
 		err = b.Delete([]byte(alias))
 		if err != nil {
 			return err

@@ -69,7 +69,7 @@ func newPasswordHash(m, t uint32, p uint8, pwd string) (passwordHash, error) {
 		Memory:  m,
 		Threads: p,
 		Salt:    salt,
-		Key:     key
+		Key:     key,
 	}
 
 	return hash, nil
@@ -88,9 +88,9 @@ func newPasswordHashFromBytes(data []byte) (passwordHash, error) {
 	return user, nil
 }
 
-//----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 // passwordHash Storage Methods
-//----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 // getUserPasswordHash returns the passwordHash associated with the given
 // userToken.
 func (s *Store) getUserPasswordHash(ut userToken) (passwordHash, error) {

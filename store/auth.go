@@ -5,9 +5,10 @@ import (
 )
 
 var (
-	authFailedKey = "%s:failed"
-	authHashKey   = "%s:hash"
-	authTotpKey   = "%s:totp"
+	authFailedKey     = "%s:failed"
+	authHashKey       = "%s:hash"
+	authTotpKey       = "%s:totp"
+	authRecentCodeKey = "%s:recent"
 )
 
 // ----------------------------------------------------------------------------
@@ -15,7 +16,7 @@ var (
 // ----------------------------------------------------------------------------
 // Authenticate takes a passphrase and verifies it matches the user's original
 // passphrase.
-func (s *Store) AuthenticateUser(ut UserToken, passphrase, totp string) bool {
+func (s *Store) AuthenticateUser(ut UserToken, passphrase, code string) bool {
 	count, err := getFailedAuthCount(ut)
 	if err != nil {
 		count = s.cfg.MaxAuthFailCount
@@ -29,11 +30,17 @@ func (s *Store) AuthenticateUser(ut UserToken, passphrase, totp string) bool {
 		return false
 	}
 
-	if !s.verifyTotp(ut, totp) {
+	used := s.getRecentTotpCode(ut)
+	if code == used {
+		return false
+	}
+
+	if !s.verifyTotp(ut, code) {
 		s.incrementFailedAuthCount(ut)
 		return false
 	}
 
+	s.saveRecentTotpCode(ut, code)
 	s.resetFailedAuthCount(ut)
 	return true
 }

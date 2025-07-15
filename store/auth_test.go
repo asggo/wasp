@@ -68,19 +68,13 @@ func testStoreAuth(t *testing.T) {
 	testFailedAuthCount(s, ut, t)
 
 	// Get the users TotpToken so we can generate an auth code.
-	tt, err := s.GetUserTotpToken(ut)
+	totp, err := s.GetUserTotp(ut)
 	if err != nil {
 		t.Fatal("Expected", nil, ", received", err)
 	}
 
 	// Generate an auth code
-	code := generateSha256Totp(
-		tt[:],
-		time.Now().Unix(),
-		s.cfg.TotpLength,
-		s.cfg.TotpStart,
-		s.cfg.TotpStep,
-	)
+	code := totp.getCode(time.Now().Unix())
 
 	// Verify we cannot authenticate with the wrong password.
 	if s.AuthenticateUser(testUserAlias, testAuthBadPassword, code) {
@@ -123,13 +117,7 @@ func testStoreAuth(t *testing.T) {
 
 	// Generate an auth code
 	time.Sleep(s.cfg.TotpStep)
-	code = generateSha256Totp(
-		tt[:],
-		time.Now().Unix(),
-		s.cfg.TotpLength,
-		s.cfg.TotpStart,
-		s.cfg.TotpStep,
-	)
+	totp.getCode(time.Now().Unix())
 
 	// Verify we can authenticate with the new password and code.
 	if !s.AuthenticateUser(testUserAlias, testAuthBadPassword, code) {
@@ -143,13 +131,7 @@ func testStoreAuth(t *testing.T) {
 	}
 
 	time.Spleep(s.cfg.TotpStep)
-	code = generateSha256Totp(
-		tt[:],
-		time.Now().Unix(),
-		s.cfg.TotpLength,
-		s.cfg.TotpStart,
-		s.cfg.TotpStep,
-	)
+	code = totp.getCode(time.Now().Unix())
 
 	if db.AuthenticateUser(testUserAlias, testAuthBadPassword, code) {
 		t.Fatal("Expected failed login", testAuthBadPassword, code)

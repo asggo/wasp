@@ -27,30 +27,26 @@ type passwordHash struct {
 	Time    uint32
 	Threads uint8
 	Salt    [saltSize]byte
+	Key     [keySize]byte
 }
 
-// derive takes a passphrase and returns a salt and derived key.
-func (p *passwordHash) derive(pwd string) string {
+// verify takes a password and verifies it produces the same key.
+func (p *passwordHash) verify(pwd string) bool {
 	// Normalize our passphrase
-	passphrase = norm.NFKD.String(passphrase)
+	pwd = norm.NFKD.String(pwd)
 
 	// Derive our hash.
-	key := argon2.IDKey([]byte(passphrase), p.Salt[:], p.Time, p.Memory, p.Threads, keySize)
+	derived := argon2.IDKey([]byte(pwd), p.Salt[:], p.Time, p.Memory, p.Threads, keySize)
 
-	// Encode our data
-	salt := base64.RawStdEncoding.EncodeToString(p.Salt[:])
-	hash := base64.RawStdEncoding.EncodeToString(key)
+	// Compare the derived key to the existing key
+	cmp := subtle.ConstantTimeCompare([]byte(p.Key), []byte(derived))
 
-	return fmt.Sprintf(
-		"$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s",
-		p.Version, p.Memory, p.Time, p.Threads,
-		salt, hash,
-	)
+	return cmp == 1
 }
 
 // newArgonHash creates a new argonHash with the given parameters and a
 // random salt.
-func newPasswordHash(m, t uint32, p uint8) (passwordHash, error) {
+func newPasswordHash(m, t uint32, p uint8, pwd string) (passwordHash, error) {
 	var salt [saltSize]byte
 	var hash passwordHash
 
@@ -59,6 +55,13 @@ func newPasswordHash(m, t uint32, p uint8) (passwordHash, error) {
 	if err != nil {
 		return hash, fmt.Errorf("could not NewPasswordHash: %v", err)
 	}
+
+	// Calculate the Key
+	// Normalize our password
+	pwd = norm.NFKD.String(pwd)
+
+	// Derive our hash.
+	key := argon2.IDKey([]byte(pwd), salt[:], t, m, p, keySize)
 
 	hash = passwordHash{
 		Version: 19,
@@ -116,20 +119,11 @@ func (s *Store) deleteUserPasswordHash(ut userToken) error {
 }
 
 // VerifyHash verifies a given passphrase generates the given hash.
-func (s *Store) verifyHash(ut userToken, hash, passphrase string) bool {
-	key := fmt.Sprintf(userHashKey, ut.String())
-	data := s.read(userBucket, key)
-	if data == nil {
-		return false
-	}
-
-	ah, err := newArgonHashFromString(string(data))
+func (s *Store) verifyHash(ut userToken, passphrase string) bool {
+	ph, err := s.getUserPasswordHash(ut)
 	if err != nil {
 		return false
 	}
 
-	derived := ah.derive(passphrase)
-	cmp := subtle.ConstantTimeCompare([]byte(hash), []byte(derived))
-
-	return cmp == 1
+	return ph.verify(passphrase)
 }

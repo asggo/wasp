@@ -10,92 +10,39 @@ import (
 	"time"
 )
 
-//----------------------------------------------------------------------------
-// Totp Storage Methods
-//----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
+// totp Stuct
+// ----------------------------------------------------------------------------
+// totp holds a User's Totp object.
+type totp struct {
+	Secret TotpToken `json:"secret"`
+	Length int64     `json:"length"`
+	Start  int64     `json:"start"`
+	Step   int64     `json:"step"`
+	Name   string    `json:"name"`
+	Issuer string    `json:"issuer"`
+}
 
-// GetTotpUrl returns the URL for the given user's Totp secret in Google Auth
-// format.
-func (s *Store) GetUserTotpUrl(ut UserToken) (string, error) {
-	tt, err := s.GetTotpToken(ut)
+// bytes converts a Totp object to a JSON byte array.
+func (t *totp) bytes() ([]byte, error) {
+	var b []byte
+
+	b, err := json.Marshal(s)
 	if err != nil {
-		return "", fmt.Errorf("could not Store.GetTotpUrl: %v", err)
+		return b, fmt.Errorf("could not Totp.bytes: %v", err)
 	}
 
-	secret := strings.TrimPrefix(totpTokenPrefix, tt.String())
-	otpStr := "otpauth://totp/%s?secret=%s&issuer=%s"
-	url := fmt.Sprintf(otpStr, s.cfg.TotpName, secret, s.cfg.TotpIssuer)
-
-	return url, nil
+	return b, nil
 }
 
-// GetUserTotpToken returns the TotpToken associated with the given UserToken.
-func (s *Store) GetUserTotpToken(ut UserToken) (TotpToken, error) {
-	var tt TotpToken
-
-	key := fmt.Sprintf(userTotpKey, ut.String())
-
-	data := s.read(userBucket, key)
-	if data == nil {
-		return tt, fmt.Errorf("could not Store.GetTotpToken: %v", err)
-	}
-
-	tt, err := parseTotpToken(string(data))
-	if err != nil {
-		return tt, fmt.Errorf("could not Store.GetTotpToken: %v", err)
-	}
-
-	return tt, nil
-}
-
-// DeleteUserTotpToken deletes the TotpToken associated with the given
-// UserToken.
-func (s *Store) DeleteUserTotpToken(ut UserToken) error {
-	key := fmt.Sprintf(userTotpKey, ut.String())
-
-	return s.Delete(userBucket, key)
-}
-
-// VerifyTotp returns true if the expected totp value matches the value
-// generated for the given user.
-func (s *Store) VerifyTotp(ut UserToken, expected string) bool {
-	key := fmt.Sprintf(userTotpKey, ut.String())
-
-	data := s.read(userBucket, key)
-	if data == nil {
-		return false
-	}
-
-	tt, err := parseTotpToken(string(data))
-	if err != nil {
-		return false
-	}
-
-	derived := generateSha256Totp(
-		tt[:],
-		time.Now().Unix(),
-		s.cfg.TotpLength,
-		s.cfg.TotpStart,
-		s.cfg.TotpStep,
-	)
-
-	cmp := subtle.ConstantTimeCompare([]byte(derived), []byte(expected))
-
-	return cmp == 1
-}
-
-//----------------------------------------------------------------------------
-// Totp Helper Functions
-//----------------------------------------------------------------------------
-
-// generateSha256Totp creates a Time-based OTP value as defined in RFC 6238.
+// GetCode creates a Time-based OTP value as defined in RFC 6238.
 //
 // This method is a Golang port of the Java implentation defined in
 // https://datatracker.ietf.org/doc/html/rfc6238#appendix-A.
-func generateSha256Totp(secret []byte, start, step, ts int64, l int) string {
+func (t *totp) getCode(ts int64) string {
 	// Calculate the number of steps since totpStart, and convert it to an
 	// 8-byte array.
-	steps := uint64(math.Floor(float64((ts - start) / step)))
+	steps := uint64(math.Floor(float64((ts - t.Start) / t.Step)))
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, steps)
 
@@ -118,12 +65,106 @@ func generateSha256Totp(secret []byte, start, step, ts int64, l int) string {
 	// on the number of digits desired in the OTP.
 	i := binary.BigEndian.Uint32(bin)
 
-	switch l {
+	switch t.Length {
 	case 8:
 		return fmt.Sprintf("%08d", i%100000000)
 	case 7:
 		return fmt.Sprintf("%07d", i%10000000)
 	default:
 		return fmt.Sprintf("%06d", i&1000000)
+	}
+}
+
+func (t *totp) url() string {
+	secret := strings.TrimPrefix(totpTokenPrefix, t.Secret.String())
+	otpStr := "otpauth://totp/%s?secret=%s&issuer=%s"
+	url := fmt.Sprintf(otpStr, t.Name, secret, t.Issuer)
+}
+
+// NewTotp returns a new Totp object.
+func newTotp(length, start, step int64, name, issuer string) totp {
+	return Totp{
+		Secret: NewTotpToken(),
+		Length: length,
+		Start:  start,
+		Step:   step,
+		Name:   name,
+		Issuer: issuer,
+	}
+}
+
+// newTotpFromBytes creates a new Totp object from a JSON byte array.
+func newTotpFromBytes(data []byte) (totp, error) {
+	var t Totp
+
+	err := json.Unmarshal(data, &t)
+	if err != nil {
+		return t, fmt.Errorf("could not NewTotpFromBytes: %v", err)
+	}
+
+	return t, nil
+}
+
+//----------------------------------------------------------------------------
+// Totp Storage Methods
+//----------------------------------------------------------------------------
+
+// GetTotpUrl returns the URL for the given user's Totp secret in Google Auth
+// format.
+func (s *Store) GetUserTotpUrl(ut userToken) (string, error) {
+	t, err := s.getUserTotp(ut)
+	if err != nil {
+		return "", fmt.Errorf("could not Store.GetUserTotpUrl: %v", err)
+	}
+
+	return t.url(), nil
+}
+
+// getUserTotp returns the TotpToken associated with the given UserToken.
+func (s *Store) getUserTotp(ut userToken) (totp, error) {
+	var t Totp
+
+	key := fmt.Sprintf(authTotpKey, ut.String())
+	data := s.read(authBucket, key)
+	if data == nil {
+		return t, fmt.Errorf("could not Store.GetUserTotp: %v", err)
+	}
+
+	t, err := newTotpFromBytes(data)
+	if err != nil {
+		return t, fmt.Errorf("could not Store.GetUserTotp: %v", err)
+	}
+
+	return t, nil
+}
+
+// deleteUserTotpToken deletes the TotpToken associated with the given
+// UserToken.
+func (s *Store) deleteUserTotp(ut userToken) error {
+	key := fmt.Sprintf(authTotpKey, ut.String())
+
+	return s.Delete(authBucket, key)
+}
+
+// verifyTotp returns true if the expected totp value matches the value
+// generated for the given user.
+func (s *Store) verifyTotp(ut userToken, expected string) bool {
+	totp, err := s.getUserTotp(ut)
+	if err != nil {
+		return false
+	}
+
+	// Get the current code and compare it to the expected code.
+	now := time.Now().Unix()
+	curr := totp.getCode(now)
+	cmp := subtle.ConstantTimeCompare([]byte(curr), []byte(expected))
+
+	// If the comparison fails, calculate the previous code and test it.
+	if cmp == 0 {
+		prev := totp.getCode(now - s.cfg.Step)
+
+		return subtle.ConstantTimeCompare([]byte(prev), []byte(expected)) == 1
+	} else {
+		return true
 	}
 }

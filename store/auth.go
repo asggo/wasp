@@ -4,8 +4,10 @@ import (
 	"fmt"
 )
 
-const (
-	maxFailCount = 10
+var (
+	authFailedKey = "%s:failed"
+	authHashKey   = "%s:hash"
+	authTotpKey   = "%s:totp"
 )
 
 // ----------------------------------------------------------------------------
@@ -14,14 +16,25 @@ const (
 // Authenticate takes a passphrase and verifies it matches the user's original
 // passphrase.
 func (s *Store) AuthenticateUser(ut UserToken, passphrase, totp string) bool {
+	count, err := getFailedAuthCount(ut)
+	if err != nil {
+		count = s.cfg.MaxAuthFailCount
+	}
+
+	// Sleep based on the failed auth count.
+	time.Sleep(time.Duration(25*(1<<count)) * time.Millisecond)
+
 	if !s.verifyHash(ut, string(hash), passphrase) {
+		s.incrementFailedAuthCount(ut)
 		return false
 	}
 
 	if !s.verifyTotp(ut, totp) {
+		s.incrementFailedAuthCount(ut)
 		return false
 	}
 
+	s.resetFailedAuthCount(ut)
 	return true
 }
 
@@ -36,10 +49,10 @@ func (s *Store) ChangeUserPassword(ut UserToken, passphrase string) error {
 	return s.write(userBucket, key, []byte(hash))
 }
 
-func (s *Store) GetFailedAuthCount(ut UserToken) (uint64, error) {
-	key := fmt.Sprintf(failedKey, ut.String())
+func (s *Store) getFailedAuthCount(ut UserToken) (uint64, error) {
+	key := fmt.Sprintf(authFailedKey, ut.String())
 
-	i, err := s.readUint64(userBucket, key)
+	i, err := s.readUint64(authBucket, key)
 	if err != nil {
 		return i, fmt.Errorf("could not Store.GetFailedAuthCount: %v", err)
 	}
@@ -47,10 +60,10 @@ func (s *Store) GetFailedAuthCount(ut UserToken) (uint64, error) {
 	return i, nil
 }
 
-func (s *Store) IncrementFailedAuthCount(ut UserToken) error {
-	key := fmt.Sprintf(failedKey, ut.String())
+func (s *Store) incrementFailedAuthCount(ut UserToken) error {
+	key := fmt.Sprintf(authFailedKey, ut.String())
 
-	i, err := s.readUint64(userBucket, key)
+	i, err := s.readUint64(authBucket, key)
 	if err != nil {
 		return fmt.Errorf("could not Store.IncrementFailedAuthCount: %v", err)
 	}
@@ -59,11 +72,11 @@ func (s *Store) IncrementFailedAuthCount(ut UserToken) error {
 		i = i + 1
 	}
 
-	return s.writeUint64(userBucket, key, i)
+	return s.writeUint64(authBucket, key, i)
 }
 
-func (s *Store) ResetFailedAuthCount(ut UserToken) error {
-	key := fmt.Sprintf(failedKey, ut.String())
+func (s *Store) resetFailedAuthCount(ut UserToken) error {
+	key := fmt.Sprintf(authFailedKey, ut.String())
 
-	return s.writeUint64(userBucket, key, 0)
+	return s.writeUint64(authBucket, key, 0)
 }

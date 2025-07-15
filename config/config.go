@@ -15,6 +15,7 @@ type Config struct {
 	TotpLength          int
 	TotpName            string
 	TotpIssuer          string
+	MaxAuthFailCount    int
 }
 
 // NewConfiguration creates a new Config object with the default settings.
@@ -33,5 +34,6 @@ func NewConfiguration() Config {
 		TotpLength:          6,       // Totp value should be 6 digits
 		TotpName:            "wasp",
 		TotpName:            "wasp",
+		MaxAuthFailCount     10,
 	}
 }

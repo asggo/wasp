@@ -16,12 +16,107 @@ const (
 	keySize  = 32
 )
 
+// ----------------------------------------------------------------------------
+// passwordHash Struct
+// ----------------------------------------------------------------------------
+// passwordHash holds the information needed to construct a User's password
+// Hash.
+type passwordHash struct {
+	Version uint8
+	Memory  uint32
+	Time    uint32
+	Threads uint8
+	Salt    [saltSize]byte
+}
+
+// derive takes a passphrase and returns a salt and derived key.
+func (p *passwordHash) derive(pwd string) string {
+	// Normalize our passphrase
+	passphrase = norm.NFKD.String(passphrase)
+
+	// Derive our hash.
+	key := argon2.IDKey([]byte(passphrase), p.Salt[:], p.Time, p.Memory, p.Threads, keySize)
+
+	// Encode our data
+	salt := base64.RawStdEncoding.EncodeToString(p.Salt[:])
+	hash := base64.RawStdEncoding.EncodeToString(key)
+
+	return fmt.Sprintf(
+		"$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s",
+		p.Version, p.Memory, p.Time, p.Threads,
+		salt, hash,
+	)
+}
+
+// newArgonHash creates a new argonHash with the given parameters and a
+// random salt.
+func newPasswordHash(m, t uint32, p uint8) (passwordHash, error) {
+	var salt [saltSize]byte
+	var hash passwordHash
+
+	// Get a random salt value.
+	_, err := rand.Read(salt[:])
+	if err != nil {
+		return hash, fmt.Errorf("could not NewPasswordHash: %v", err)
+	}
+
+	hash = passwordHash{
+		Version: 19,
+		Time:    t,
+		Memory:  m,
+		Threads: p,
+		Salt:    salt,
+		Key:     key
+	}
+
+	return hash, nil
+}
+
+// newPasswordHashFromBytes creates a new passwordHash object from a JSON byte
+// array.
+func newPasswordHashFromBytes(data []byte) (passwordHash, error) {
+	var ph passwordHash
+
+	err := json.Unmarshal(data, &ph)
+	if err != nil {
+		return ph, fmt.Errorf("could not newPasswordHashFromBytes: %v", err)
+	}
+
+	return user, nil
+}
+
 //----------------------------------------------------------------------------
-// Derive Storage Methods
+// passwordHash Storage Methods
 //----------------------------------------------------------------------------
+// getUserPasswordHash returns the passwordHash associated with the given
+// userToken.
+func (s *Store) getUserPasswordHash(ut userToken) (passwordHash, error) {
+	var p passwordHash
+
+	key := fmt.Sprintf(authHashKey, ut.String())
+	data := s.read(authBucket, key)
+	if data == nil {
+		return p, fmt.Errorf("could not Store.GetUserPasswordHash: %v", err)
+	}
+
+	t, err := newPasswordHashFromBytes(data)
+	if err != nil {
+		return p, fmt.Errorf("could not Store.GetUserPasswordHash: %v", err)
+	}
+
+	return p, nil
+}
+
+// deleteUserPasswordHash deletes the passwordHash associated with the given
+// userToken.
+func (s *Store) deleteUserPasswordHash(ut userToken) error {
+	key := fmt.Sprintf(authHashKey, ut.String())
+
+	return s.Delete(authBucket, key)
+}
 
 // VerifyHash verifies a given passphrase generates the given hash.
-func (s *Store) verifyHash(ut UserToken, hash, passphrase string) bool {
+func (s *Store) verifyHash(ut userToken, hash, passphrase string) bool {
 	key := fmt.Sprintf(userHashKey, ut.String())
 	data := s.read(userBucket, key)
 	if data == nil {
@@ -37,87 +132,4 @@ func (s *Store) verifyHash(ut UserToken, hash, passphrase string) bool {
 	cmp := subtle.ConstantTimeCompare([]byte(hash), []byte(derived))
 
 	return cmp == 1
-}
-
-//----------------------------------------------------------------------------
-// argonHash Struct
-//----------------------------------------------------------------------------
-
-type argonHash struct {
-	memory  uint32
-	time    uint32
-	threads uint8
-	salt    [saltSize]byte
-}
-
-// derive takes a passphrase and returns a salt and derived key.
-func (a *argonHash) derive(pwd string) string {
-	// Normalize our passphrase
-	passphrase = norm.NFKD.String(passphrase)
-
-	// Derive our hash.
-	key := argon2.IDKey([]byte(passphrase), a.salt[:], a.time, a.memory, a.threads, keySize)
-
-	// Encode our data
-	salt := base64.RawStdEncoding.EncodeToString(a.salt[:])
-	hash := base64.RawStdEncoding.EncodeToString(key)
-
-	return fmt.Sprintf(
-		"$argon2id$v=19$m=%d,t=%d,p=%d$%s$%s",
-		a.memory, a.time, a.threads,
-		salt, hash,
-	)
-}
-
-// newArgonHash creates a new argonHash with the given parameters and a
-// random salt.
-func newArgonHash(m, t uint32, p uint8) (argonHash, error) {
-	var salt [saltSize]byte
-	var hash string
-
-	// Get a random salt value.
-	_, err := rand.Read(salt[:])
-	if err != nil {
-		return hash, fmt.Errorf("could not newArgonHash: %v", err)
-	}
-
-	return argonHash{
-		time:    t,
-		memory:  m,
-		threads: p,
-		salt:    salt,
-	}
-}
-
-// newArgonHashFromString returns an argonHash from the salt and parameters
-// extracted from the given string.
-func newArgonHashFromString(hash string) (argonHash, error) {
-	var ah argonHash
-	var saltBytes []byte
-
-	if !strings.HasPrefix(hash, "$argon2id$v=19") {
-		return ah, fmt.Errorf("could not newArgonHashFromString: invalid hash type")
-	}
-
-	// Split the hash into its parts.
-	parts := strings.Split(hash, "$")
-	if len(parts) != 6 {
-		return ah, fmt.Errorf("could not newArgonHashFromString: invalid hash split")
-	}
-
-	// Extract parameters
-	_, err := fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &ah.memory, &ah.time, &ah.threads)
-	if err != nil {
-		return ah, fmt.Errorf("could not newArgonHashFromString: invalid parameters")
-	}
-
-	// Extract salt
-	saltBytes, _ = base64.RawStdEncoding.DecodeString(parts[4])
-	if len(saltBytes) != saltSize {
-		return ah, fmt.Errorf("could not newArgonHashFromString: invalid salt length")
-	}
-
-	copy(ah.salt[:], saltBytes[:saltSize])
-
-	return ah, nil
 }

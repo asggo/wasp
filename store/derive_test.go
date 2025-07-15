@@ -20,16 +20,16 @@ var (
 )
 
 func TestDeriver(t *testing.T) {
-	t.Run("Test newArgonHash", testNewArgonHash)
+	t.Run("Test newPasswordHash", testNewPasswordHash)
 	t.Run("Test newArgonHashFromString", testNewArgonHashFromString)
 }
 
-func testNewArgonHash(t *testing.T) {
+func testNewPasswordHash(t *testing.T) {
 	fmt.Println(t.Name())
 
 	// Create two argonHash objects.
-	ah, err := newArgonHash(testDeriveMemory, testDeriveTime, testDeriveThreads)
-	ah2, err := newArgonHash(testDeriveMemory, testDeriveTime, testDeriveThreads)
+	ah, err := newPasswordHash(testDeriveMemory, testDeriveTime, testDeriveThreads)
+	ah2, err := newPasswordHash(testDeriveMemory, testDeriveTime, testDeriveThreads)
 
 	// They should each have different salts.
 	if bytes.Equal(ah.salt[:], ah1.salt[:]) {

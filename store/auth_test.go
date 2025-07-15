@@ -16,7 +16,7 @@ func testFailedAuthCount(s *Store, ut UserToken, t *testing.T) {
 	fmt.Println(t.Name())
 
 	// Get failed auth count
-	count, err := s.GetFailedAuthCount(ut)
+	count, err := s.getFailedAuthCount(ut)
 	if err != nil {
 		t.Fatal("Expected", nil, ", received", err)
 	}
@@ -26,12 +26,12 @@ func testFailedAuthCount(s *Store, ut UserToken, t *testing.T) {
 	}
 
 	// Increment the failed auth count
-	err = s.IncrementFailedAuthCount(ut)
+	err = s.incrementFailedAuthCount(ut)
 	if err != nil {
 		t.Fatal("Expected", nil, ", received", err)
 	}
 
-	count, err = s.GetFailedAuthCount(ut)
+	count, err = s.getFailedAuthCount(ut)
 	if err != nil {
 		t.Fatal("Expected", nil, ", received", err)
 	}
@@ -41,12 +41,12 @@ func testFailedAuthCount(s *Store, ut UserToken, t *testing.T) {
 	}
 
 	// Reset the failed auth count
-	err = s.ResetFailedAuthCount(ut)
+	err = s.resetFailedAuthCount(ut)
 	if err != nil {
 		t.Fatal("Expected", nil, ", received", err)
 	}
 
-	count, _ = s.GetFailedAuthCount(ut)
+	count, _ = s.getFailedAuthCount(ut)
 	if count != 0 {
 		t.Fatal("Expected", 0, ", received", count)
 	}
@@ -93,7 +93,7 @@ func testStoreAuth(t *testing.T) {
 	}
 
 	// FailedAuthCount should be 2 at this point
-	count, _ := s.GetFailedAuthCount(ut)
+	count, _ := s.getFailedAuthCount(ut)
 	if count != 2 {
 		t.Fatal("Expected 2 failed authentication attempts, received", count)
 	}
@@ -104,7 +104,7 @@ func testStoreAuth(t *testing.T) {
 	}
 
 	// The count should be 0 after the successful login
-	count, _ = s.GetFailedAuthCount(ut)
+	count, _ = s.getFailedAuthCount(ut)
 	if count != 0 {
 		t.Fatal("Expected 0 failed authentication attempts, received", count)
 	}

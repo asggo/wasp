@@ -21,21 +21,21 @@ const (
 var tokenEncoder = base32.NewEncoding("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567").WithPadding(base32.NoPadding)
 
 //----------------------------------------------------------------------------
-// UserToken
+// userToken
 //----------------------------------------------------------------------------
 
-// UserToken represents a user token.
-type UserToken [tokenSize]byte
+// userToken represents a user token.
+type userToken [tokenSize]byte
 
 // String converts a UserToken object to a string.
-func (u UserToken) String() string {
+func (u userToken) String() string {
 	token := tokenEncoder.EncodeToString(u[:])
 
 	return fmt.Sprintf("%s%s", userTokenPrefix, token)
 }
 
-// NewUserToken generates a random UserToken.
-func NewUserToken() UserToken {
+// newUserToken generates a random userToken.
+func newUserToken() userToken {
 	var ut UserToken
 
 	bytes := newTokenBytes()
@@ -45,9 +45,9 @@ func NewUserToken() UserToken {
 }
 
 // parseUserToken takes a string in the form of user_base32 and parses it
-// into an UserToken
-func parseUserToken(s string) (UserToken, error) {
-	var ut UserToken
+// into an userToken
+func parseUserToken(s string) (userToken, error) {
+	var ut userToken
 
 	if !strings.HasPrefix(s, userTokenPrefix) {
 		return ut, fmt.Errorf("could not parseUserToken: invalid prefix")
@@ -70,22 +70,22 @@ func parseUserToken(s string) (UserToken, error) {
 }
 
 //----------------------------------------------------------------------------
-// SessionToken
+// sessionToken
 //----------------------------------------------------------------------------
 
-// SessionToken represents a session token.
-type SessionToken [tokenSize]byte
+// sessionToken represents a session token.
+type sessionToken [tokenSize]byte
 
-// String converts a SessionToken object to a string.
-func (s SessionToken) String() string {
+// String converts a sessionToken object to a string.
+func (s sessionToken) String() string {
 	token := tokenEncoder.EncodeToString(s[:])
 
 	return fmt.Sprintf("%s%s", sessionTokenPrefix, token)
 }
 
-// NewSessionToken generates a random SessionToken.
-func NewSessionToken() SessionToken {
-	var st SessionToken
+// NewSessionToken generates a random sessionToken.
+func newSessionToken() sessionToken {
+	var st sessionToken
 
 	bytes := newTokenBytes()
 	copy(st[:], bytes[:])
@@ -94,8 +94,8 @@ func NewSessionToken() SessionToken {
 }
 
 // parseSessionToken takes a string in the form of sess_base32 and parses it
-// into an SessionToken
-func parseSessionToken(s string) (SessionToken, error) {
+// into an sessionToken
+func parseSessionToken(s string) (sessionToken, error) {
 	var st SessionToken
 
 	if !strings.HasPrefix(s, sessionTokenPrefix) {
@@ -119,22 +119,22 @@ func parseSessionToken(s string) (SessionToken, error) {
 }
 
 //----------------------------------------------------------------------------
-// TotpToken
+// totpToken
 //----------------------------------------------------------------------------
 
-// TotpToken represents a TOTP token.
-type TotpToken [tokenSize]byte
+// totpToken represents a TOTP token.
+type totpToken [tokenSize]byte
 
 // String converts a TotpToken object to a string.
-func (t TotpToken) String() string {
+func (t totpToken) String() string {
 	token := tokenEncoder.EncodeToString(s[:])
 
 	return fmt.Sprintf("%s%s", totpTokenPrefix, token)
 }
 
-// NewTotpToken generates a random TotpToken.
-func NewTotpToken() TotpToken {
-	var tt TotpToken
+// NewTotpToken generates a random totpToken.
+func NewTotpToken() totpToken {
+	var tt totpToken
 
 	bytes := newTokenBytes()
 	copy(tt[:], bytes[:])
@@ -143,9 +143,9 @@ func NewTotpToken() TotpToken {
 }
 
 // parseTotpToken takes a string in the form of totp_base32 and parses it
-// into an TotpToken
-func parseTotpToken(s string) (TotpToken, error) {
-	var tt TotpToken
+// into an totpToken
+func parseTotpToken(s string) (totpToken, error) {
+	var tt totpToken
 
 	if !strings.HasPrefix(s, totpTokenPrefix) {
 		return tt, fmt.Errorf("could not parseTotpToken: invalid prefix")

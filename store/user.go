@@ -9,12 +9,54 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
-var (
-	userFailedKey = "%s:failed"
-	userHashKey   = "%s:hash"
-	userTotpKey   = "%s:totp"
-	userAdminKey  = "%s:admin"
-)
+//----------------------------------------------------------------------------
+// User Struct
+//----------------------------------------------------------------------------
+
+// user holds a single user account.
+type user struct {
+	UserId userToken `json:"user_id"`
+	Alias  string    `json:"alias"`
+	Admin  bool      `json:"admin"`
+}
+
+// bytes renders a user object as a JSON byte array.
+func (u *user) bytes() ([]byte, error) {
+	var b []byte
+
+	b, err := json.Marshal(u)
+	if err != nil {
+		return b, fmt.Errorf("could not user.bytes: %v", err)
+	}
+
+	return b, nil
+}
+
+// newUser creates a new User object using the given alias and passphrase. The
+// passphrase is hashed and stored in the User object.
+func newUser(alias string, admin bool) user {
+	var u user
+
+	u.UserId = newUserToken()
+	u.Alias = strings.ToLower(norm.NFKD.String(alias))
+	u.Admin = admin
+
+	return u
+}
+
+// newUserFromBytes creates a new user object from a JSON byte array.
+func newUserFromBytes(data []byte) (user, error) {
+	var u user
+
+	err := json.Unmarshal(data, &u)
+	if err != nil {
+		fmt.Println(string(data))
+		return user, fmt.Errorf("could not NewUserFromBytes: %v", err)
+	}
+
+	return u, nil
+}
+
 
 //----------------------------------------------------------------------------
 // User Storage Methods
@@ -22,17 +64,15 @@ var (
 
 // CreateUser takes a UserToken, alias, password, and an admin flag and
 // creates a user in the Store.
-func (s *Store) CreateUser(alias, pwd string, adm bool) (UserToken, error) {
-	var ut UserToken
-
+func (s *Store) CreateUser(alias, pwd string, admin bool) (userToken, error) {
 	// Verify the alias does not already exist
 	data := s.read(userBucket, alias)
 	if data != nil {
 		return ut, fmt.Errorf("could not Store.CreateUser: alias %s exists", alias)
 	}
 
-	// Create a UserToken for the user.
-	ut := NewUserToken()
+	// Create a user.
+	user := newUser(alias, admin)
 
 	// Create a TotpToken for the user.
 	secret := NewTotpToken()

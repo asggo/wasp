@@ -17,9 +17,10 @@ const (
 )
 
 var (
-	storeBuckets = [2]string{
+	storeBuckets = [3]string{
 		userBucket,
 		sessBucket,
+		authBucket,
 	}
 )
 

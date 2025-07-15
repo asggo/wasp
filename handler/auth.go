@@ -73,30 +73,9 @@ func (ah *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !ah.db.AuthenticateUser(user.UserId, pw) {
-		ah.db.IncrementFailedAuthCount(user.UserId)
-
-		count, err := ah.db.GetFailedAuthCount(user.UserId)
-		if err != nil {
-			e := fmt.Errorf("could not AuthHandler.Login: %v", err)
-			NewServerError(e).Handle(w, r)
-			return
-		}
-
-		// Sleep based on the failed auth count.
-		time.Sleep(time.Duration(25*(1<<count)) * time.Millisecond)
-
 		loginTmpl.ExecuteTemplate(w, "layout", NewResponse(r.Context(), invalidCredentials))
 		return
 	}
-
-	ah.db.ResetFailedAuthCount(user.UserId)
-
-	// sess, err := store.NewSession(user.UserId, ah.cfg.SessionLength)
-	// if err != nil {
-	// 	e := fmt.Errorf("could not AuthHandler.Login: %v", err)
-	// 	NewServerError(e).Handle(w, r)
-	// 	return
-	// }
 
 	st, err := ah.db.CreateSession(user.UserId)
 	if err != nil {

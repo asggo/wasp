@@ -95,12 +95,8 @@ func testNewArgonHashFromString(t *testing.T) {
 func testGenerateHash(t *testing.T) {
 	fmt.Println(t.Name())
 
-	hash1, err := GenerateHash(goodPassword)
-	if err != nil {
-		t.Fatal("Expected no error, recieved", err)
-	}
-
-	hash2, _ := GenerateHash(goodPassword)
+	hash1 := GenerateHash(goodPassword)
+	hash2 := GenerateHash(goodPassword)
 	if hash1 == hash2 {
 		t.Fatal("Did not generate unique hashes")
 	}

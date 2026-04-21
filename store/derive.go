@@ -87,22 +87,20 @@ func newArgonHashFromString(hash string) (argonHash, error) {
 }
 
 // GenerateHash creates a new Argon2id hash with the given passphrase.
-func GenerateHash(passphrase string) (string, error) {
+func GenerateHash(passphrase string) string {
 	var saltBytes [saltSize]byte
 	var hash string
 
-	// Get a random salt value.
-	_, err := rand.Read(saltBytes[:])
-	if err != nil {
-		return hash, fmt.Errorf("could not argonHash.derive: %v", err)
-	}
+	// Get a random salt value. As of Go 1.24 Read is guaranteed not to return
+	// an error.
+	rand.Read(saltBytes[:])
 
 	// Create an argonHash with the SECOND RECOMMENDED option from RFC9106 and
 	// derive our hash.
 	argon := newArgonHash(64*1024, 4, 3, saltBytes)
 	hash = argon.derive(passphrase)
 
-	return hash, nil
+	return hash
 }
 
 // VerifyHash verifies a given passphrase generates the given hash.

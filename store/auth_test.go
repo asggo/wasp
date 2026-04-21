@@ -14,11 +14,11 @@ var (
 func testStoreAuth(t *testing.T) {
 	fmt.Println(t.Name())
 
-	u1 := NewUser(testUserAlias)
+	u1 := NewUser(testUserAlias, testAuthGoodPassword)
 	db := newTestStore(t, testAuthDbPath)
 	defer deleteTestStore(t, testAuthDbPath)
 
-	err := db.CreateUser(u1, testAuthGoodPassword)
+	err := db.CreateUser(u1)
 	if err != nil {
 		t.Fatal("Expected", nil, ", received", err)
 	}

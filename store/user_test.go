@@ -12,7 +12,11 @@ var (
 )
 
 func testUserEqual(t *testing.T, u1, u2 User) {
-	if (u1.UserId != u2.UserId) || (u1.Alias != u2.Alias) || (u1.Admin != u2.Admin) {
+	if (u1.UserId != u2.UserId) ||
+		(u1.Alias != u2.Alias) ||
+		(u1.Admin != u2.Admin) ||
+		(u1.PasswordHash != u2.PasswordHash) ||
+		(u1.FailedCount != u2.FailedCount) {
 		t.Fatal("Expected", u1, ", received", u2)
 	}
 }
@@ -20,38 +24,26 @@ func testUserEqual(t *testing.T, u1, u2 User) {
 func TestUser(t *testing.T) {
 	fmt.Println(t.Name())
 
-	u1 := NewUser(testUserAlias)
+	u1 := NewUser(testUserAlias, testUserPassphrase)
 	if u1.Admin {
 		t.Fatal("Expected", false, ", received", u1.Admin)
 	}
-
-	bytes, err := u1.bytes()
-	if err != nil {
-		t.Fatal("Expected", nil, ", received", err)
-	}
-
-	u2, err := NewUserFromBytes(bytes)
-	if err != nil {
-		t.Fatal("Expected", nil, ", received", err)
-	}
-
-	testUserEqual(t, u1, u2)
 }
 
 func testStoreUser(t *testing.T) {
 	fmt.Println(t.Name())
 
-	u1 := NewUser(testUserAlias)
+	u1 := NewUser(testUserAlias, testUserPassphrase)
 	s := newTestStore(t, testUserDbPath)
 	defer deleteTestStore(t, testUserDbPath)
 
 	// Create User
-	err := s.CreateUser(u1, testUserPassphrase)
+	err := s.CreateUser(u1)
 	if err != nil {
 		t.Fatal("Expected", nil, ", received", err)
 	}
 
-	err = s.CreateUser(u1, testUserPassphrase)
+	err = s.CreateUser(u1)
 	if err == nil {
 		t.Fatal("Expected error, received nil")
 	}
@@ -66,7 +58,7 @@ func testStoreUser(t *testing.T) {
 	}
 
 	// Get User
-	u2, err := s.GetUser(u1.UserId)
+	u2, err := s.ReadUser(u1.UserId)
 	if err != nil {
 		t.Fatal("Expected", nil, ", received", err)
 	}

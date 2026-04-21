@@ -21,7 +21,7 @@ func testSessionEqual(t *testing.T, s1, s2 Session) {
 func TestSession(t *testing.T) {
 	fmt.Println(t.Name())
 
-	u1 := NewUser(testUserAlias)
+	u1 := NewUser(testUserAlias, testUserPassphrase)
 	s1, err := NewSession(u1.UserId, 5)
 	if err != nil {
 		t.Fatal("Expected", nil, ", received", err)
@@ -54,7 +54,7 @@ func TestSession(t *testing.T) {
 func testStoreSession(t *testing.T) {
 	fmt.Println(t.Name())
 
-	u1 := NewUser(testUserAlias)
+	u1 := NewUser(testUserAlias, testUserPassphrase)
 	s1, err := NewSession(u1.UserId, 5)
 	if err != nil {
 		t.Fatal("Expected", nil, ", received", err)

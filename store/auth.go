@@ -8,10 +8,7 @@ const (
 	maxFailCount = 10
 )
 
-var (
-	failedKey = "%s:failed"
-	hashKey   = "%s:hash"
-)
+var ()
 
 // ----------------------------------------------------------------------------
 // Authentication Storage Methods
@@ -19,25 +16,21 @@ var (
 // Authenticate takes a passphrase and verifies it matches the user's original
 // passphrase.
 func (s *Store) AuthenticateUser(ut UserToken, passphrase string) bool {
-	key := fmt.Sprintf(hashKey, ut.String())
+	key := fmt.Sprintf(userHashKey, ut.String())
 	hash := s.read(userBucket, key)
 
 	return VerifyHash(string(hash), passphrase)
 }
 
 func (s *Store) ChangeUserPassword(ut UserToken, passphrase string) error {
-	key := fmt.Sprintf(hashKey, ut.String())
-
-	hash, err := GenerateHash(passphrase)
-	if err != nil {
-		return fmt.Errorf("could not Store.ChangeUserPassword: %v", err)
-	}
+	key := fmt.Sprintf(userHashKey, ut.String())
+	hash := GenerateHash(passphrase)
 
 	return s.write(userBucket, key, []byte(hash))
 }
 
 func (s *Store) GetFailedAuthCount(ut UserToken) (uint64, error) {
-	key := fmt.Sprintf(failedKey, ut.String())
+	key := fmt.Sprintf(userFailedKey, ut.String())
 
 	i, err := s.readUint64(userBucket, key)
 	if err != nil {
@@ -48,7 +41,7 @@ func (s *Store) GetFailedAuthCount(ut UserToken) (uint64, error) {
 }
 
 func (s *Store) IncrementFailedAuthCount(ut UserToken) error {
-	key := fmt.Sprintf(failedKey, ut.String())
+	key := fmt.Sprintf(userFailedKey, ut.String())
 
 	i, err := s.readUint64(userBucket, key)
 	if err != nil {
@@ -63,7 +56,7 @@ func (s *Store) IncrementFailedAuthCount(ut UserToken) error {
 }
 
 func (s *Store) ResetFailedAuthCount(ut UserToken) error {
-	key := fmt.Sprintf(failedKey, ut.String())
+	key := fmt.Sprintf(userFailedKey, ut.String())
 
 	return s.writeUint64(userBucket, key, 0)
 }

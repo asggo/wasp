@@ -49,6 +49,18 @@ func uint64ToBytes(i uint64) []byte {
 	return buf
 }
 
+func bytesToBool(data []byte) bool {
+	return string(bytes.ToLower(data)) == "true"
+}
+
+func boolToBytes(b bool) []byte {
+	if b {
+		return []byte("true")
+	} else {
+		return []byte("false")
+	}
+}
+
 //----------------------------------------------------------------------------
 // Initialization Database
 //----------------------------------------------------------------------------

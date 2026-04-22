@@ -21,23 +21,11 @@ func testSessionEqual(t *testing.T, s1, s2 Session) {
 func TestSession(t *testing.T) {
 	fmt.Println(t.Name())
 
-	u1 := NewUser(testUserAlias)
+	u1 := NewUser(testUserAlias, testUserPassphrase)
 	s1, err := NewSession(u1.UserId, 5)
 	if err != nil {
 		t.Fatal("Expected", nil, ", received", err)
 	}
-
-	bytes, err := s1.bytes()
-	if err != nil {
-		t.Fatal("Expected", nil, ", received", err)
-	}
-
-	s2, err := NewSessionFromBytes(bytes)
-	if err != nil {
-		t.Fatal("Expected", nil, ", received", err)
-	}
-
-	testSessionEqual(t, s1, s2)
 
 	if s1.IsExpired() {
 		t.Fatal("Expected unexpired session, received", s1)
@@ -54,7 +42,7 @@ func TestSession(t *testing.T) {
 func testStoreSession(t *testing.T) {
 	fmt.Println(t.Name())
 
-	u1 := NewUser(testUserAlias)
+	u1 := NewUser(testUserAlias, testUserPassphrase)
 	s1, err := NewSession(u1.UserId, 5)
 	if err != nil {
 		t.Fatal("Expected", nil, ", received", err)
@@ -70,7 +58,7 @@ func testStoreSession(t *testing.T) {
 	}
 
 	// Get Session
-	s2, err := db.GetSession(s1.SessionId)
+	s2, err := db.ReadSession(s1.SessionId)
 	if err != nil {
 		t.Fatal("Expected", nil, ", received", err)
 	}
@@ -99,7 +87,7 @@ func testStoreSession(t *testing.T) {
 		t.Fatal("Expected", nil, ", received", err)
 	}
 
-	_, err = db.GetSession(s1.SessionId)
+	_, err = db.ReadSession(s1.SessionId)
 	if err == nil {
 		t.Fatal("Expected error, received", nil)
 	}

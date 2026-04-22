@@ -33,7 +33,7 @@ func Authorizer(s *store.Store) func(next http.Handler) http.Handler {
 				handler.NewUnauthorizedError(e).Handle(w, r)
 			}
 
-			user, err := s.GetUser(sess.UserId)
+			user, err := s.ReadUser(sess.UserId)
 			if err != nil {
 				e := fmt.Errorf("could not Authorizer: %v", err)
 				handler.NewServerError(e).Handle(w, r)

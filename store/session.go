@@ -1,10 +1,16 @@
 package store
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
+
+	bolt "go.etcd.io/bbolt"
+)
+
+var (
+	sessionUserKey   = "%s:userid"
+	sessionExpireKey = "%s:expire"
 )
 
 //----------------------------------------------------------------------------
@@ -15,26 +21,14 @@ import (
 type Session struct {
 	SessionId  SessionToken `json:"session_id"`
 	UserId     UserToken    `json:"user_id"`
-	Expiration int64        `json:"expire"`
+	Expiration uint64       `json:"expire"`
 }
 
 // IsExpired returns true if the session is expired.
 func (s *Session) IsExpired() bool {
 	t := time.Now()
 
-	return t.Unix() > s.Expiration
-}
-
-// bytes converts a Session object to a JSON byte array.
-func (s *Session) bytes() ([]byte, error) {
-	var b []byte
-
-	b, err := json.Marshal(s)
-	if err != nil {
-		return b, fmt.Errorf("could not Session.Bytes: %v", err)
-	}
-
-	return b, nil
+	return t.Unix() > int64(s.Expiration)
 }
 
 // NewSession returns a new Session object for the given User.
@@ -45,21 +39,9 @@ func NewSession(uid UserToken, length int64) (Session, error) {
 	s.UserId = uid
 
 	t := time.Now()
-	s.Expiration = t.Unix() + length
+	s.Expiration = uint64(t.Unix() + length)
 
 	return s, nil
-}
-
-// NewSessionFromBytes creates a new Session object from a JSON byte array.
-func NewSessionFromBytes(data []byte) (Session, error) {
-	var sess Session
-
-	err := json.Unmarshal(data, &sess)
-	if err != nil {
-		return sess, fmt.Errorf("could not NewSessionFromStore: %v", err)
-	}
-
-	return sess, nil
 }
 
 // NewSessionFromRequest loads a Session from the Store based on the session
@@ -77,7 +59,7 @@ func NewSessionFromRequest(r *http.Request, s *Store) (Session, error) {
 		return sess, fmt.Errorf("could not NewSessionFromRequest: %v", err)
 	}
 
-	sess, err = s.GetSession(sessId)
+	sess, err = s.ReadSession(sessId)
 	if err != nil {
 		return sess, fmt.Errorf("could not NewSessionFromRequest: %v", err)
 	}
@@ -91,37 +73,103 @@ func NewSessionFromRequest(r *http.Request, s *Store) (Session, error) {
 
 // CreateSession takes a Session and creates it in the Store.
 func (s *Store) CreateSession(sess Session) error {
-	sessionBytes, err := sess.bytes()
+	err := s.db.Batch(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(sessBucket))
+
+		// Write each of the session elements to the Store
+		key := fmt.Sprintf(sessionUserKey, sess.SessionId.String())
+		err := b.Put([]byte(key), []byte(sess.UserId.String()))
+		if err != nil {
+			return err
+		}
+
+		key = fmt.Sprintf(sessionExpireKey, sess.SessionId.String())
+		err = b.Put([]byte(key), uint64ToBytes(sess.Expiration))
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
 	if err != nil {
-		return fmt.Errorf("could not Store.CreateSession: %v", err)
+		return fmt.Errorf("could not store.CreateSession: %v", err)
 	}
 
-	return s.write(sessBucket, sess.SessionId.String(), sessionBytes)
+	return nil
+}
+
+// ReadSession takes a SessionToken and returns the Session associated with it.
+func (s *Store) ReadSession(sid SessionToken) (Session, error) {
+	var sess Session
+	var userId []byte
+	var expire []byte
+
+	err := s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(sessBucket))
+
+		// Read each of the session elements from the Store
+		key := fmt.Sprintf(sessionUserKey, sid.String())
+		userId = b.Get([]byte(key))
+		if userId == nil {
+			return fmt.Errorf("no sessionUserKey")
+		}
+
+		key = fmt.Sprintf(sessionExpireKey, sid.String())
+		expire = b.Get([]byte(key))
+		if expire == nil {
+			return fmt.Errorf("no sessionExpireKey")
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return sess, fmt.Errorf("could not store.ReadSession: %v", err)
+	}
+
+	token, err := parseUserToken(string(userId))
+	if err != nil {
+		return sess, fmt.Errorf("could not store.ReadSession: %v", err)
+	}
+
+	n, err := bytesToUint64(expire)
+	if err != nil {
+		return sess, fmt.Errorf("could not store.ReadSession: %v", err)
+	}
+
+	sess.SessionId = sid
+	sess.UserId = token
+	sess.Expiration = n
+
+	return sess, nil
 }
 
 // DeleteSession takes a SessionToken and removes the associated session from
 // the Store.
 func (s *Store) DeleteSession(sid SessionToken) error {
-	return s.delete(sessBucket, sid.String())
-}
+	err := s.db.Batch(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(sessBucket))
 
-// GetSession takes a SessionToken and returns the Session associated with it.
-func (s *Store) GetSession(sid SessionToken) (Session, error) {
-	var sess Session
+		// Delete each of the session elements from the Store
+		key := fmt.Sprintf(sessionUserKey, sid.String())
+		err := b.Delete([]byte(key))
+		if err != nil {
+			return err
+		}
 
-	data := s.read(sessBucket, sid.String())
-	if data == nil {
-		return sess, fmt.Errorf("could not Store.GetSession: session %s not found", sid)
-	}
+		key = fmt.Sprintf(sessionExpireKey, sid.String())
+		err = b.Delete([]byte(key))
+		if err != nil {
+			return err
+		}
 
-	sess, err := NewSessionFromBytes(data)
+		return nil
+	})
+
 	if err != nil {
-		return sess, fmt.Errorf("could not Store.GetSession: %v", err)
+		return fmt.Errorf("could not store.DeleteSession: %v", err)
 	}
 
-	if sid.String() != sess.SessionId.String() {
-		return sess, fmt.Errorf("could not Store.GetSession: requested and fetched ids do not match")
-	}
-
-	return sess, nil
+	return nil
 }

@@ -61,9 +61,9 @@ func (rh *registerHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := store.NewUser(un)
+	user := store.NewUser(un, pw)
 
-	err := rh.db.CreateUser(user, pw)
+	err := rh.db.CreateUser(user)
 	if err != nil {
 		e := fmt.Errorf("could not RegisterHandler.Register: %v", err)
 		NewServerError(e).Handle(w, r)
@@ -95,10 +95,10 @@ func (rh *registerHandler) RegisterAdmin(w http.ResponseWriter, r *http.Request)
 		NewBadRequestError(e).Handle(w, r)
 	}
 
-	user := store.NewUser("admin")
+	user := store.NewUser("admin", pw)
 	user.Admin = true
 
-	err := rh.db.CreateUser(user, pw)
+	err := rh.db.CreateUser(user)
 	if err != nil {
 		e := fmt.Errorf("could not RegisterHandler.RegisterAdmin: %v", err)
 		NewServerError(e).Handle(w, r)
